@@ -1,0 +1,17 @@
+/illustrations/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/cutouts/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/spectrograms/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/api/*
+  Cache-Control: public, max-age=0, must-revalidate
+
+/*.html
+  Cache-Control: public, max-age=0, must-revalidate
+
+/
+  Cache-Control: public, max-age=0, must-revalidate

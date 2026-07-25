@@ -1,0 +1,31 @@
+name: Squash history
+
+on:
+  schedule:
+    - cron: '0 4 1 1,7 *'   # 04:00 UTC on 1 Jan and 1 Jul — twice yearly
+  workflow_dispatch:          # manual trigger for testing / on demand
+
+permissions:
+  contents: write
+
+concurrency:
+  group: squash-main
+  cancel-in-progress: false
+
+jobs:
+  squash:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout current tree only
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1      # we throw history away, so no need to fetch it
+
+      - name: Collapse history into one orphan commit
+        run: |
+          git config user.name  "east-dean-squash-bot"
+          git config user.email "295025795+websitebuild26@users.noreply.github.com"
+          git checkout --orphan squashed
+          git add -A
+          git commit -m "Squash history $(date -u '+%Y-%m-%d')"
+          git push --force origin squashed:main
