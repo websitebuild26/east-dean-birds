@@ -1490,13 +1490,17 @@
       var bird = { sci: s.sci, com: s.com, index: accession[s.sci] || 0, count: total, placeholder: needsArt };
       var inner = window.STAMPS.markup(bird, needsArt ? './nest-eggs.webp' : art);
       return '<article class="bird-card stamp-card' + (needsArt ? ' needs-art' : '') +
-        '" data-sci="' + _escA(s.sci) + '" data-com="' + _escA(s.com || '') + '">' +
+        '" data-sci="' + _escA(s.sci) + '" data-com="' + _escA(s.com || '') +
+        '" data-acc="' + (accession[s.sci] || 0) + '">' +
         inner + '</article>';
     }).join('');
 
     // Paint the canvas treatments and fit the perforation edges.
     if (window.FX) requestAnimationFrame(function () { window.FX.run(grid); });
     if (window.STAMPS.syncFringe) window.STAMPS.syncFringe(grid);
+
+    // New arrivals get "stamped" into the collection with a drop-and-settle.
+    maybeStickStamps(grid);
 
     // Delegated click -> shared detail modal. Registered once on the container,
     // so it survives every innerHTML swap.
@@ -1511,6 +1515,81 @@
         if (window.__openDetailModal) window.__openDetailModal(card.getAttribute('data-sci'));
       });
     }
+  }
+
+  // ---- Stick-on: a newly-heard species drops into the collection ----
+  // Ported from upstream's atlas stick-on, minus the masonry packer: in a plain
+  // CSS grid the new card already holds its cell, so we just hide it on render
+  // and plop it in when the Stamps view is on screen. Which species are "new"
+  // is tracked by the highest accession number seen last visit (localStorage),
+  // so a returning visitor only sees the arrivals since they were last here, and
+  // a first-ever visit never plops the whole imported life list.
+  var STAMP_SEEN_KEY = 'bird:stampSeen';
+  var _stampStuck = false;        // arrivals handled for this page load
+  var _stampStickScheduled = false;
+  function plopStamp(card, ordinal) {
+    card.style.opacity = '1';
+    if ((window.matchMedia && matchMedia('(prefers-reduced-motion:reduce)').matches) || !card.animate) {
+      return Promise.resolve();
+    }
+    var lean = ordinal % 2 ? 0.55 : -0.55;
+    var animation = card.animate([
+      { opacity: 0, transform: 'translate3d(0,-18px,0) scale(.91) rotate(' + lean + 'deg)',
+        filter: 'drop-shadow(0 12px 7px rgba(38,29,20,.17))', offset: 0 },
+      { opacity: 1, transform: 'translate3d(0,2.5px,0) scale(1.025) rotate(' + (-lean * 0.14) + 'deg)',
+        filter: 'drop-shadow(0 3px 2px rgba(38,29,20,.12))', offset: 0.62 },
+      { opacity: 1, transform: 'translate3d(0,-1px,0) scale(.995) rotate(0deg)',
+        filter: 'drop-shadow(0 1px 1px rgba(38,29,20,.08))', offset: 0.78 },
+      { opacity: 1, transform: 'translate3d(0,0,0) scale(1) rotate(0deg)',
+        filter: 'drop-shadow(0 0 0 rgba(38,29,20,0))', offset: 1 }
+    ], { duration: 520, delay: 120, easing: 'cubic-bezier(.18,.8,.22,1)', fill: 'both' });
+    return animation.finished.catch(function () { }).then(function () { animation.cancel(); });
+  }
+  function maybeStickStamps(grid) {
+    if (_stampStuck || _stampStickScheduled) return;
+    var cards = [].slice.call(grid.querySelectorAll('.stamp-card[data-acc]'))
+      .filter(function (c) { return +c.dataset.acc > 0; });
+    if (!cards.length) return;
+    var highest = 0;
+    cards.forEach(function (c) { var a = +c.dataset.acc || 0; if (a > highest) highest = a; });
+    var seen = 0;
+    try { seen = parseInt(localStorage.getItem(STAMP_SEEN_KEY) || '0', 10) || 0; } catch (e) { }
+    // First ever visit establishes the baseline; don't plop the whole life list.
+    if (seen === 0) {
+      _stampStuck = true;
+      try { localStorage.setItem(STAMP_SEEN_KEY, String(highest)); } catch (e) { }
+      return;
+    }
+    var fresh = cards.filter(function (c) { return (+c.dataset.acc || 0) > seen; })
+      .sort(function (a, b) { return (+a.dataset.acc) - (+b.dataset.acc); });
+    if (!fresh.length) return;
+    _stampStickScheduled = true;
+    // Hide the arrivals until they drop in.
+    fresh.forEach(function (c) { c.classList.add('stamp-pending'); });
+
+    function play() {
+      if (_stampStuck) return;
+      _stampStuck = true;
+      var i = 0;
+      (function placeNext() {
+        var card = fresh[i];
+        if (!card) { try { localStorage.setItem(STAMP_SEEN_KEY, String(highest)); } catch (e) { } return; }
+        card.classList.remove('stamp-pending');
+        plopStamp(card, i).then(function () {
+          card.style.removeProperty('opacity');
+          i++;
+          setTimeout(placeNext, 140);
+        });
+      })();
+    }
+
+    // Play once the Stamps view (v3) is actually on screen, so the moment isn't
+    // spent behind another view. Give up after two minutes.
+    if (currentView === 3) { setTimeout(play, 600); return; }
+    var t = setInterval(function () {
+      if (currentView === 3) { clearInterval(t); setTimeout(play, 500); }
+    }, 300);
+    setTimeout(function () { clearInterval(t); }, 120000);
   }
 
   // Repaint on show: canvases that were laid out while the view was off-screen
