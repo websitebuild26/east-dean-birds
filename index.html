@@ -11,6 +11,16 @@
      light on load. The full switcher lives in Settings (writes bird:theme). -->
 <script>try{if(localStorage.getItem('bird:theme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}</script>
 <link rel="stylesheet" href="./styles.css">
+<!-- Bird Stamps view: the stamp-collection engine (self-contained). Its
+     own .atlas-grid rules were renamed to .stamp-grid so the field-guide
+     atlas (view v2) is untouched. stamp-view.css loads last and owns the
+     stamp grid layout. -->
+<link rel="stylesheet" href="./stamps.css?v=stamp1">
+<link rel="stylesheet" href="./stamp-batch-root.css?v=stamp1">
+<link rel="stylesheet" href="./stamp-batch-a.css?v=stamp1">
+<link rel="stylesheet" href="./stamp-batch-b.css?v=stamp1">
+<link rel="stylesheet" href="./stamp-batch-c.css?v=stamp1">
+<link rel="stylesheet" href="./stamp-view.css?v=stamp1">
 </head>
 <body class="av-local">
 <!-- Pill in the top-left slot, only visible on admin overlays
@@ -118,6 +128,16 @@
       <div class="atlas-grid" id="atlasGrid"></div>
     </section>
 
+    <!-- ========== View 4 - Bird Stamps ========== -->
+    <!-- The life list rendered as a postage-stamp album. Cards are
+         .bird-card.stamp-card so the stamp engine (stamps.css / window.STAMPS)
+         styles them, while renderStamps() in apt.js feeds it the same
+         DATA.lifelist the field-guide atlas uses. Clicking a stamp opens the
+         shared #detail-modal, same as an atlas card. -->
+    <section class="view" id="v3" aria-label="Bird stamps">
+      <div class="stamp-grid" id="stampGrid"></div>
+    </section>
+
   </div>
 </main>
 
@@ -199,6 +219,7 @@
   <button type="button" data-i="0" aria-current="true">collage</button>
   <button type="button" data-i="1">stats</button>
   <button type="button" data-i="2">atlas</button>
+  <button type="button" data-i="3">stamps</button>
 </nav>
 
 
@@ -213,6 +234,13 @@
   </div>
 </section>
 
+<!-- Stamp engine must load before apt.js: renderStamps() calls window.STAMPS
+     / window.FX, which these files define. Order matches upstream. -->
+<script src="./stamps.js?v=stamp1"></script>
+<script src="./stamp-batch-root.js?v=stamp1"></script>
+<script src="./stamp-batch-a.js?v=stamp1"></script>
+<script src="./stamp-batch-b.js?v=stamp1"></script>
+<script src="./stamp-batch-c.js?v=stamp1"></script>
 <script src="./apt.js"></script>
-<style>#menuBtn,#menu-dd{display:none !important;}.rec-spectro,.rec-row .play,.bird-card .spectro-wrap,.bird-card .chip.play{display:none !important;}</style><div style="position:fixed;bottom:6px;right:10px;font:11px/1.4 system-ui,sans-serif;color:#fff;background:rgba(0,0,0,.45);padding:3px 7px;border-radius:6px;z-index:9999;">Last updated: 19 Aug 2026, 21:07 BST</div></body>
+<style>#menuBtn,#menu-dd{display:none !important;}.rec-spectro,.rec-row .play,.bird-card .spectro-wrap,.bird-card .chip.play{display:none !important;}</style><div style="position:fixed;bottom:6px;right:10px;font:11px/1.4 system-ui,sans-serif;color:#fff;background:rgba(0,0,0,.45);padding:3px 7px;border-radius:6px;z-index:9999;">Last updated: 19 Aug 2026, 21:48 BST</div></body>
 </html>

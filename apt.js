@@ -96,12 +96,13 @@
   // Each view's title text. The shared static-head shows one of these
   // based on the current view; identical adjacent values mean the title
   // stays put with no fade (collage and stats both say Heard Recently).
-  var VIEW_TITLES = ['Heard Today', 'Heard Today', 'Avian Visitors'];
+  var VIEW_TITLES = ['Heard Today', 'Heard Today', 'Avian Visitors', 'The Collection'];
   // Windows longer than a day can't honestly say "today".
   var LONG_WINDOW_TITLE = 'Heard Recently';
   var lastViewIndex = 0;
   function titleForView(i) {
-    if (i === 2) return VIEW_TITLES[2];
+    // Atlas (2) and Bird Stamps (3) carry a fixed title regardless of window.
+    if (i >= 2) return VIEW_TITLES[i];
     var h = (typeof currentHours === 'undefined') ? 24 : currentHours;
     return (h > 24) ? LONG_WINDOW_TITLE : VIEW_TITLES[i];
   }
@@ -134,7 +135,7 @@
   var STATS_LEAD = SLIDE_MS - 200;    // stats - begin a touch sooner
   var currentView = 0;                // collage shows first (no go() needed)
   function go(i) {
-    i = Math.max(0, Math.min(2, i));
+    i = Math.max(0, Math.min(3, i));
     // Only a genuine view *switch* replays the entrance. go() also fires when
     // a card is expanded (it sets the #sci= hash, which routes through go(2))
     // while already on the atlas - that must not retrigger the load-in.
@@ -150,6 +151,7 @@
     if (i === 0) playCollageEntrance();
     else if (i === 1) playStatsEntrance(STATS_LEAD);
     else if (i === 2) playAtlasEntrance(SWITCH_LEAD);
+    else if (i === 3) showStamps();
   }
   btns.forEach(function (b) { b.addEventListener('click', function () { go(+b.dataset.i); }); });
 
@@ -228,6 +230,7 @@
       // Re-render the atlas with new sort, replaying the row-by-row
       // cascade so a filter change reads as a fresh stack load-in.
       renderAtlas(true);
+      renderStamps(true);   // stamps follow the same sort control
     });
   });
 
@@ -1416,6 +1419,112 @@
     if (animate) playAtlasEntrance();
   }
 
+  // ---- Bird Stamps view (v3) ----
+  // The life list rendered as a postage-stamp album. window.STAMPS (stamps.js)
+  // turns each species into a family-styled stamp and window.FX paints the
+  // canvas treatments (cyanotype / halftone / engraving / low-poly). We feed it
+  // the same DATA.lifelist the field-guide atlas uses, so the two views stay in
+  // lockstep with no extra backend. Clicking a stamp opens the shared
+  // #detail-modal, exactly like an atlas card.
+  var _stampClickWired = false;
+  function _escA(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  function renderStamps(animate) {
+    var grid = document.getElementById('stampGrid');
+    if (!grid || !window.STAMPS) return;
+
+    var lifelist = (DATA.lifelist && DATA.lifelist.species) || [];
+    var recent = (DATA.recent && DATA.recent.species) || [];
+    var winBySci = {};
+    recent.forEach(function (s) { winBySci[s.sci] = +s.n; });
+
+    if (!lifelist.length) {
+      grid.innerHTML = '<div class="stamp-empty"><p>No birds detected yet.</p>' +
+        '<p class="hint">The collection fills up as BirdNET-Pi identifies new species.</p></div>';
+      return;
+    }
+
+    // Same time-window filter as the atlas: a windowed view shows only species
+    // heard in that window; ALL shows the whole life list.
+    var isAllWindow = currentHours >= 1000000;
+    var filtered = isAllWindow
+      ? lifelist
+      : lifelist.filter(function (s) { return (winBySci[s.sci] || 0) > 0; });
+    if (!filtered.length) {
+      grid.innerHTML = '<div class="stamp-empty"><p>No detections in this window.</p>' +
+        '<p class="hint">Try a longer time window.</p></div>';
+      return;
+    }
+
+    // Accession number = the order a species entered the life list (by first
+    // detection). It is the stamp's "Nº" and pins its family issue, so a species
+    // always prints the same stamp. Built from the FULL life list before the
+    // window filter, so the number never shifts as the window changes.
+    var accession = {};
+    lifelist.slice().sort(function (a, b) {
+      return (a.first_seen || '').localeCompare(b.first_seen || '') ||
+        (a.sci || '').localeCompare(b.sci || '');
+    }).forEach(function (s, i) { accession[s.sci] = i + 1; });
+
+    // Reuse the atlas sort control where it maps cleanly, else most-heard first.
+    var sortMode = (window.__atlasSort) || 'count';
+    var species = filtered.slice();
+    if (sortMode === 'recent') {
+      species.sort(function (a, b) { return (b.last_seen || '').localeCompare(a.last_seen || ''); });
+    } else if (sortMode === 'alpha') {
+      species.sort(function (a, b) { return (a.com || a.sci || '').localeCompare(b.com || b.sci || ''); });
+    } else {
+      species.sort(function (a, b) { return (+b.n) - (+a.n); });
+    }
+
+    grid.innerHTML = species.map(function (s) {
+      var total = +s.n || 0;
+      // Heard but not yet drawn: issue the family stamp with the egg-nest in the
+      // artwork plate (matches upstream). His illustration set is complete, so
+      // this is a graceful fallback rather than a common case.
+      var needsArt = tablesReady && !DIMS[slugify(s.sci)];
+      var art = './avian/api/cutout.php?sci=' + encodeURIComponent(s.sci) +
+        (s.com ? '&com=' + encodeURIComponent(s.com) : '') + '&v=' + SKETCH_VERSION;
+      var bird = { sci: s.sci, com: s.com, index: accession[s.sci] || 0, count: total, placeholder: needsArt };
+      var inner = window.STAMPS.markup(bird, needsArt ? './nest-eggs.webp' : art);
+      return '<article class="bird-card stamp-card' + (needsArt ? ' needs-art' : '') +
+        '" data-sci="' + _escA(s.sci) + '" data-com="' + _escA(s.com || '') + '">' +
+        inner + '</article>';
+    }).join('');
+
+    // Paint the canvas treatments and fit the perforation edges.
+    if (window.FX) requestAnimationFrame(function () { window.FX.run(grid); });
+    if (window.STAMPS.syncFringe) window.STAMPS.syncFringe(grid);
+
+    // Delegated click -> shared detail modal. Registered once on the container,
+    // so it survives every innerHTML swap.
+    if (!_stampClickWired) {
+      _stampClickWired = true;
+      grid.addEventListener('click', function (ev) {
+        var card = ev.target.closest && ev.target.closest('.stamp-card[data-sci]');
+        if (!card) return;
+        // Stop the global .bird-card handler from also firing - it would jump to
+        // the atlas via the #sci hash. Open the modal in place instead.
+        ev.stopPropagation();
+        if (window.__openDetailModal) window.__openDetailModal(card.getAttribute('data-sci'));
+      });
+    }
+  }
+
+  // Repaint on show: canvases that were laid out while the view was off-screen
+  // can measure 0x0, so run FX again once the stamps are actually visible.
+  function showStamps() {
+    var grid = document.getElementById('stampGrid');
+    if (!grid) return;
+    if (window.FX) {
+      requestAnimationFrame(function () { window.FX.run(grid); });
+      setTimeout(function () { window.FX.run(grid); }, 320);
+    }
+    if (window.STAMPS && window.STAMPS.syncFringe) window.STAMPS.syncFringe(grid);
+  }
+
   function renderWindowDependent(animate) {
     // renderStatsLists runs BEFORE drawHistograms so the stats entrance
     // (fired at the end of drawHistograms) can stagger the side-panel rows
@@ -1424,12 +1533,14 @@
     renderStatsLists();
     drawHistograms(animate);
     renderAtlas(animate);
+    renderStamps(animate);
   }
   function renderTimeIndependent(animate) {
     // Lists first, then the graph (see renderWindowDependent).
     renderStatsLists();
     drawHistograms(animate);
     renderAtlas(animate);
+    renderStamps(animate);
   }
 
   function refreshRecent(animate) {
