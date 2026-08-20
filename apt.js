@@ -1485,8 +1485,7 @@
       // artwork plate (matches upstream). His illustration set is complete, so
       // this is a graceful fallback rather than a common case.
       var needsArt = tablesReady && !DIMS[slugify(s.sci)];
-      var art = './avian/api/cutout.php?sci=' + encodeURIComponent(s.sci) +
-        (s.com ? '&com=' + encodeURIComponent(s.com) : '') + '&v=' + SKETCH_VERSION;
+      var art = window.__img(s.sci, 1) + '?v=' + SKETCH_VERSION;
       var bird = { sci: s.sci, com: s.com, index: accession[s.sci] || 0, count: total, placeholder: needsArt };
       var inner = window.STAMPS.markup(bird, needsArt ? './nest-eggs.webp' : art);
       return '<article class="bird-card stamp-card' + (needsArt ? ' needs-art' : '') +
