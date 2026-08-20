@@ -230,7 +230,24 @@
       // Re-render the atlas with new sort, replaying the row-by-row
       // cascade so a filter change reads as a fresh stack load-in.
       renderAtlas(true);
-      renderStamps(true);   // stamps follow the same sort control
+    });
+  });
+
+  // Stamps view has its OWN 4-way sort toggle (life list / by family / a-z /
+  // last heard), independent of the field-guide atlas's control.
+  var stampSortEl = document.getElementById('stampSort');
+  var stampSortBtns = stampSortEl ? [].slice.call(stampSortEl.querySelectorAll('button')) : [];
+  window.__stampSort = readLS('bird:stampSort', 'life');
+  stampSortBtns.forEach(function (b) {
+    b.setAttribute('aria-current', (b.dataset.sort === window.__stampSort) ? 'true' : 'false');
+  });
+  stampSortBtns.forEach(function (b) {
+    b.addEventListener('click', function () {
+      stampSortBtns.forEach(function (x) { x.setAttribute('aria-current', x === b ? 'true' : 'false'); });
+      window.__stampSort = b.dataset.sort;
+      writeLS('bird:stampSort', window.__stampSort);
+      syncPill(stampSortEl);
+      renderStamps(true);
     });
   });
 
@@ -238,8 +255,9 @@
   wireToggleAdvance(slider);
   wireToggleAdvance(winPick);
   wireToggleAdvance(atlasSortEl);
+  wireToggleAdvance(stampSortEl);
   wireToggleAdvance(document.getElementById('modalPoseToggle'));
-  function syncAllPills() { syncPill(slider); syncPill(winPick); if (atlasSortEl) syncPill(atlasSortEl); }
+  function syncAllPills() { syncPill(slider); syncPill(winPick); if (atlasSortEl) syncPill(atlasSortEl); if (stampSortEl) syncPill(stampSortEl); }
   // The buttons size from text content; wait for fonts so width is correct.
   if (document.fonts && document.fonts.ready) {
     document.fonts.ready.then(syncAllPills);
@@ -1468,18 +1486,27 @@
         (a.sci || '').localeCompare(b.sci || '');
     }).forEach(function (s, i) { accession[s.sci] = i + 1; });
 
-    // Reuse the atlas sort control where it maps cleanly, else most-heard first.
-    var sortMode = (window.__atlasSort) || 'count';
+    // Sort mode comes from the stamps view's own toggle (life / family / alpha /
+    // recent), independent of the field-guide atlas's control.
+    var sortMode = (window.__stampSort) || 'life';
     var species = filtered.slice();
     if (sortMode === 'recent') {
       species.sort(function (a, b) { return (b.last_seen || '').localeCompare(a.last_seen || ''); });
     } else if (sortMode === 'alpha') {
       species.sort(function (a, b) { return (a.com || a.sci || '').localeCompare(b.com || b.sci || ''); });
+    } else if (sortMode === 'family') {
+      // grouped into family sections below; within a family, most-heard leads.
+      species.sort(function (a, b) {
+        var fa = (window.STAMPS ? window.STAMPS.familyOf(a.sci) : 'Other') || 'Other';
+        var fb = (window.STAMPS ? window.STAMPS.familyOf(b.sci) : 'Other') || 'Other';
+        return fa.localeCompare(fb) || (+b.n) - (+a.n);
+      });
     } else {
-      species.sort(function (a, b) { return (+b.n) - (+a.n); });
+      // life list: the order species entered the collection, newest arrival first.
+      species.sort(function (a, b) { return (accession[b.sci] || 0) - (accession[a.sci] || 0); });
     }
 
-    grid.innerHTML = species.map(function (s) {
+    function stampCard(s) {
       var total = +s.n || 0;
       // Heard but not yet drawn: issue the family stamp with the egg-nest in the
       // artwork plate (matches upstream). His illustration set is complete, so
@@ -1492,7 +1519,31 @@
         '" data-sci="' + _escA(s.sci) + '" data-com="' + _escA(s.com || '') +
         '" data-acc="' + (accession[s.sci] || 0) + '">' +
         inner + '</article>';
-    }).join('');
+    }
+
+    if (sortMode === 'family' && window.STAMPS) {
+      // One section per family: a header (family + species count) over the
+      // family's own stamp grid. #stampGrid switches to display:block here.
+      grid.dataset.mode = 'family';
+      var out = '', run = [], cur = null;
+      function flush() {
+        if (!run.length) return;
+        out += '<section class="fam-block"><h2 class="atlas-fam"><span>' + _escA(cur) +
+          '</span><i></i><em>' + run.length + ' species</em></h2>' +
+          '<div class="stamp-fam-grid">' + run.join('') + '</div></section>';
+        run = [];
+      }
+      species.forEach(function (sp) {
+        var fam = window.STAMPS.familyOf(sp.sci) || 'Other';
+        if (fam !== cur) { flush(); cur = fam; }
+        run.push(stampCard(sp));
+      });
+      flush();
+      grid.innerHTML = out;
+    } else {
+      grid.removeAttribute('data-mode');
+      grid.innerHTML = species.map(stampCard).join('');
+    }
 
     // Paint the canvas treatments and fit the perforation edges.
     if (window.FX) requestAnimationFrame(function () { window.FX.run(grid); });
@@ -1601,6 +1652,9 @@
       setTimeout(function () { window.FX.run(grid); }, 320);
     }
     if (window.STAMPS && window.STAMPS.syncFringe) window.STAMPS.syncFringe(grid);
+    // Position the sort pill now that the view is on screen (its buttons size
+    // from text, which needs layout).
+    if (stampSortEl) requestAnimationFrame(function () { syncPill(stampSortEl); });
   }
 
   function renderWindowDependent(animate) {
