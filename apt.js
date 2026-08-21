@@ -1644,16 +1644,49 @@
 
   // Repaint on show: canvases that were laid out while the view was off-screen
   // can measure 0x0, so run FX again once the stamps are actually visible.
+  // Stamp assets (CSS + engine JS) are NOT on the page statically - loading them
+  // on the collage/stats/atlas render delays the collage past shoot.py's wait on
+  // the e-ink frame's slow board. Inject them once, the first time the stamps tab
+  // is opened, preserving order (engine before batches).
+  var _stampAssets = 0;            // 0 = not loaded, 1 = loading, 2 = ready
+  var _stampAssetCbs = [];
+  function loadStampAssets(cb) {
+    if (_stampAssets === 2) { if (cb) cb(); return; }
+    if (cb) _stampAssetCbs.push(cb);
+    if (_stampAssets === 1) return;
+    _stampAssets = 1;
+    var V = '?v=stamp1';
+    ['stamps.css', 'stamp-batch-root.css', 'stamp-batch-a.css', 'stamp-batch-b.css',
+     'stamp-batch-c.css', 'stamp-view.css'].forEach(function (f) {
+      var l = document.createElement('link');
+      l.rel = 'stylesheet'; l.href = './' + f + V;
+      document.head.appendChild(l);
+    });
+    var js = ['stamps.js', 'stamp-batch-root.js', 'stamp-batch-a.js', 'stamp-batch-b.js', 'stamp-batch-c.js'];
+    var i = 0;
+    (function next() {
+      if (i >= js.length) {
+        _stampAssets = 2;
+        _stampAssetCbs.forEach(function (c) { try { c(); } catch (e) { } });
+        _stampAssetCbs = [];
+        return;
+      }
+      var s = document.createElement('script');
+      s.src = './' + js[i] + V;
+      s.onload = s.onerror = function () { i++; next(); };
+      document.head.appendChild(s);
+    })();
+  }
+
   function showStamps() {
     var grid = document.getElementById('stampGrid');
     if (!grid) return;
-    if (window.FX) {
-      requestAnimationFrame(function () { window.FX.run(grid); });
-      setTimeout(function () { window.FX.run(grid); }, 320);
-    }
-    if (window.STAMPS && window.STAMPS.syncFringe) window.STAMPS.syncFringe(grid);
-    // Position the sort pill now that the view is on screen (its buttons size
-    // from text, which needs layout).
+    // Load the stamp engine on first open, then render. renderStamps handles the
+    // FX paint, fringe sync and stick-on.
+    loadStampAssets(function () {
+      renderStamps(true);
+      if (window.FX) setTimeout(function () { window.FX.run(grid); }, 340);
+    });
     if (stampSortEl) requestAnimationFrame(function () { syncPill(stampSortEl); });
   }
 
@@ -1665,14 +1698,20 @@
     renderStatsLists();
     drawHistograms(animate);
     renderAtlas(animate);
-    renderStamps(animate);
+    // Stamps build lazily - only when their view is actually on screen. This
+    // keeps the collage/stats/atlas load light, so the e-ink frame (which only
+    // screenshots the collage) never pays for building 30+ canvas stamps.
+    if (currentView === 3) renderStamps(animate);
   }
   function renderTimeIndependent(animate) {
     // Lists first, then the graph (see renderWindowDependent).
     renderStatsLists();
     drawHistograms(animate);
     renderAtlas(animate);
-    renderStamps(animate);
+    // Stamps build lazily - only when their view is actually on screen. This
+    // keeps the collage/stats/atlas load light, so the e-ink frame (which only
+    // screenshots the collage) never pays for building 30+ canvas stamps.
+    if (currentView === 3) renderStamps(animate);
   }
 
   function refreshRecent(animate) {
