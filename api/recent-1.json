@@ -1,1 +1,1 @@
-{"hours":1,"species":[],"as_of":"2026-09-17T05:07:06+01:00"}
+{"hours":1,"species":[{"sci":"Erithacus rubecula","com":"European Robin","n":1,"best_conf":0.7252,"last_seen":"2026-09-17 06:06:14","top_file":"European_Robin-73-2026-09-17-birdnet-06:06:14.mp3","top_at":"2026-09-17 06:06:14"},{"sci":"Turdus philomelos","com":"Song Thrush","n":1,"best_conf":0.9116,"last_seen":"2026-09-17 05:18:59","top_file":"Song_Thrush-91-2026-09-17-birdnet-05:18:59.mp3","top_at":"2026-09-17 05:18:59"}],"as_of":"2026-09-17T06:07:09+01:00"}
