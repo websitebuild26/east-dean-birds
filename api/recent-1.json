@@ -1,1 +1,1 @@
-{"hours":1,"species":[],"as_of":"2026-09-18T05:07:06+01:00"}
+{"hours":1,"species":[{"sci":"Erithacus rubecula","com":"European Robin","n":23,"best_conf":0.9422,"last_seen":"2026-09-18 06:06:47","top_file":"European_Robin-94-2026-09-18-birdnet-05:50:23.mp3","top_at":"2026-09-18 05:50:23"},{"sci":"Turdus merula","com":"Eurasian Blackbird","n":1,"best_conf":0.8354,"last_seen":"2026-09-18 06:03:08","top_file":"Eurasian_Blackbird-84-2026-09-18-birdnet-06:03:08.mp3","top_at":"2026-09-18 06:03:08"}],"as_of":"2026-09-18T06:07:06+01:00"}
