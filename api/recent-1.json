@@ -1,1 +1,1 @@
-{"hours":1,"species":[],"as_of":"2026-10-25T11:07:17+00:00"}
+{"hours":1,"species":[{"sci":"Corvus monedula","com":"Eurasian Jackdaw","n":6,"best_conf":0.9642,"last_seen":"2026-10-25 11:51:32","top_file":"Eurasian_Jackdaw-96-2026-10-25-birdnet-11:45:32.mp3","top_at":"2026-10-25 11:45:32"},{"sci":"Pica pica","com":"Eurasian Magpie","n":2,"best_conf":0.9888,"last_seen":"2026-10-25 11:46:20","top_file":"Eurasian_Magpie-99-2026-10-25-birdnet-11:45:44.mp3","top_at":"2026-10-25 11:45:44"}],"as_of":"2026-10-25T12:07:22+00:00"}
