@@ -1,1 +1,1 @@
-{"hours":1,"species":[],"as_of":"2026-11-26T23:07:09+00:00"}
+{"hours":1,"species":[{"sci":"Strix aluco","com":"Tawny Owl","n":1,"best_conf":0.9339,"last_seen":"2026-11-26 23:45:53","top_file":"Tawny_Owl-93-2026-11-26-birdnet-23:45:53.mp3","top_at":"2026-11-26 23:45:53"},{"sci":"Turdus philomelos","com":"Song Thrush","n":1,"best_conf":0.7416,"last_seen":"2026-11-26 23:28:14","top_file":"Song_Thrush-74-2026-11-26-birdnet-23:28:14.mp3","top_at":"2026-11-26 23:28:14"}],"as_of":"2026-11-27T00:07:08+00:00"}
